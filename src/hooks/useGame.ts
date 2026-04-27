@@ -1,6 +1,57 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+const REVEAL_KEY = "chicken.photosRevealed";
+export const REVEAL_PASSWORD = "2486";
+
+export function usePhotosRevealed() {
+  const [revealed, setRevealed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(REVEAL_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === REVEAL_KEY) setRevealed(e.newValue === "1");
+    };
+    const onCustom = () => setRevealed(localStorage.getItem(REVEAL_KEY) === "1");
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("chicken:reveal-changed", onCustom);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("chicken:reveal-changed", onCustom);
+    };
+  }, []);
+
+  const unlock = (password: string) => {
+    if (password.trim() !== REVEAL_PASSWORD) return false;
+    try {
+      localStorage.setItem(REVEAL_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    setRevealed(true);
+    window.dispatchEvent(new Event("chicken:reveal-changed"));
+    return true;
+  };
+
+  const lock = () => {
+    try {
+      localStorage.removeItem(REVEAL_KEY);
+    } catch {
+      /* ignore */
+    }
+    setRevealed(false);
+    window.dispatchEvent(new Event("chicken:reveal-changed"));
+  };
+
+  return { revealed, unlock, lock };
+}
+
+
 export interface TeamSession {
   teamId: string;
   teamName: string;
