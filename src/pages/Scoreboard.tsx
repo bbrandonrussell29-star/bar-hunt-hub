@@ -41,8 +41,44 @@ const Scoreboard = () => {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const settings = useGameSettings();
   const { session } = useSession();
+  const [revealed, setRevealed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(REVEAL_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [revealOpen, setRevealOpen] = useState(false);
+  const [pwInput, setPwInput] = useState("");
 
   const gameClosed = settings?.status === "closed";
+
+  const tryUnlock = () => {
+    if (pwInput.trim() === REVEAL_PASSWORD) {
+      setRevealed(true);
+      try {
+        localStorage.setItem(REVEAL_KEY, "1");
+      } catch {
+        /* ignore */
+      }
+      setRevealOpen(false);
+      setPwInput("");
+      toast.success("🐔 Photos unlocked for everyone on this device");
+    } else {
+      toast.error("Wrong password");
+      setPwInput("");
+    }
+  };
+
+  const lockAgain = () => {
+    setRevealed(false);
+    try {
+      localStorage.removeItem(REVEAL_KEY);
+    } catch {
+      /* ignore */
+    }
+    toast.success("Photos hidden again");
+  };
 
   useEffect(() => {
     const load = async () => {
