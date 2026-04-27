@@ -132,6 +132,24 @@ const Bars = () => {
     setPendingBar(null);
   };
 
+  const undoFound = async () => {
+    if (!session) return;
+    const { error } = await supabase
+      .from("teams")
+      .update({
+        found_chicken_at: null,
+        found_chicken_bar_slug: null,
+        found_chicken_bar_name: null,
+      })
+      .eq("id", session.teamId);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setTeamFound({ found_chicken_at: null, found_chicken_bar_name: null });
+    toast.success("Hunt resumed — keep going!");
+  };
+
   const declareFound = async (barSlug: string, barName: string) => {
     if (!session) return;
     const now = new Date().toISOString();
@@ -218,12 +236,20 @@ const Bars = () => {
         </ul>
 
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-vinyl-dark/90 backdrop-blur-xl border-t border-vinyl-red/30">
-          <div className="max-w-md mx-auto">
+          <div className="max-w-md mx-auto space-y-2">
             <Link to="/scoreboard">
               <Button variant="brass" size="hero" className="w-full">
                 <Trophy className="size-5" /> Scoreboard
               </Button>
             </Link>
+            <Button
+              variant="outline"
+              size="hero"
+              className="w-full border-vinyl-red/50 text-smoke hover:bg-vinyl-red/20"
+              onClick={undoFound}
+            >
+              Wait — we didn't find the Chicken
+            </Button>
           </div>
         </div>
       </main>
