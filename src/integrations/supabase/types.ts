@@ -19,7 +19,6 @@ export type Database = {
           bar_name: string
           bar_slug: string
           created_at: string
-          game_id: string | null
           id: string
           photo_url: string
           team_id: string
@@ -28,7 +27,6 @@ export type Database = {
           bar_name: string
           bar_slug: string
           created_at?: string
-          game_id?: string | null
           id?: string
           photo_url: string
           team_id: string
@@ -37,7 +35,6 @@ export type Database = {
           bar_name?: string
           bar_slug?: string
           created_at?: string
-          game_id?: string | null
           id?: string
           photo_url?: string
           team_id?: string
@@ -73,58 +70,12 @@ export type Database = {
         }
         Relationships: []
       }
-      games: {
-        Row: {
-          created_at: string
-          game_date: string
-          id: string
-          name: string
-          status: string
-        }
-        Insert: {
-          created_at?: string
-          game_date: string
-          id?: string
-          name: string
-          status?: string
-        }
-        Update: {
-          created_at?: string
-          game_date?: string
-          id?: string
-          name?: string
-          status?: string
-        }
-        Relationships: []
-      }
-      players: {
-        Row: {
-          created_at: string
-          id: string
-          name: string
-          pin_hash: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          name: string
-          pin_hash: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          name?: string
-          pin_hash?: string
-        }
-        Relationships: []
-      }
       teams: {
         Row: {
           created_at: string
           found_chicken_at: string | null
           found_chicken_bar_name: string | null
           found_chicken_bar_slug: string | null
-          game_id: string | null
           id: string
           members: string[]
           name: string
@@ -134,7 +85,6 @@ export type Database = {
           found_chicken_at?: string | null
           found_chicken_bar_name?: string | null
           found_chicken_bar_slug?: string | null
-          game_id?: string | null
           id?: string
           members?: string[]
           name: string
@@ -144,7 +94,6 @@ export type Database = {
           found_chicken_at?: string | null
           found_chicken_bar_name?: string | null
           found_chicken_bar_slug?: string | null
-          game_id?: string | null
           id?: string
           members?: string[]
           name?: string
@@ -156,11 +105,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      create_player: { Args: { _name: string; _pin: string }; Returns: string }
-      verify_player_pin: {
-        Args: { _name: string; _pin: string }
-        Returns: string
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never

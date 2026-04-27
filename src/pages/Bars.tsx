@@ -119,7 +119,6 @@ const Bars = () => {
 
     const { error: insErr } = await supabase.from("check_ins").insert({
       team_id: session.teamId,
-      game_id: session.gameId,
       bar_slug: pendingBar.slug,
       bar_name: pendingBar.name,
       photo_url: pub.publicUrl,
