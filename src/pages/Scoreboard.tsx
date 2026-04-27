@@ -1,10 +1,24 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Trophy, EyeOff } from "lucide-react";
+import { ArrowLeft, Trophy, EyeOff, Eye, Lock } from "lucide-react";
 import { format } from "date-fns";
 import { BARS } from "@/data/bars";
 import { useGameSettings, useSession } from "@/hooks/useGame";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+
+const REVEAL_PASSWORD = "2486";
+const REVEAL_KEY = "chicken.photosRevealed";
 
 interface Team {
   id: string;
@@ -27,8 +41,44 @@ const Scoreboard = () => {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const settings = useGameSettings();
   const { session } = useSession();
+  const [revealed, setRevealed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(REVEAL_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [revealOpen, setRevealOpen] = useState(false);
+  const [pwInput, setPwInput] = useState("");
 
   const gameClosed = settings?.status === "closed";
+
+  const tryUnlock = () => {
+    if (pwInput.trim() === REVEAL_PASSWORD) {
+      setRevealed(true);
+      try {
+        localStorage.setItem(REVEAL_KEY, "1");
+      } catch {
+        /* ignore */
+      }
+      setRevealOpen(false);
+      setPwInput("");
+      toast.success("🐔 Photos unlocked for everyone on this device");
+    } else {
+      toast.error("Wrong password");
+      setPwInput("");
+    }
+  };
+
+  const lockAgain = () => {
+    setRevealed(false);
+    try {
+      localStorage.removeItem(REVEAL_KEY);
+    } catch {
+      /* ignore */
+    }
+    toast.success("Photos hidden again");
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -77,13 +127,39 @@ const Scoreboard = () => {
         <p className="text-smoke/60 text-sm mt-1">Most bars hit · Bragging rights forever</p>
       </header>
 
-      {!gameClosed && (
-        <div className="rounded-2xl border-2 border-brass/40 bg-vinyl-dark/60 p-4 mb-6 flex items-start gap-3">
+      {!gameClosed && !revealed && (
+        <div className="rounded-2xl border-2 border-brass/40 bg-vinyl-dark/60 p-4 mb-4 flex items-start gap-3">
           <EyeOff className="size-5 text-brass shrink-0 mt-0.5" />
           <p className="text-xs text-smoke/80 leading-relaxed">
             <span className="font-semibold text-brass">Photos are hidden during the hunt</span> so other
-            teams can't see where the Chicken isn't. All photos unlock when the game closes.
+            teams can't see where the Chicken isn't. Got the secret code? Reveal them below.
           </p>
+        </div>
+      )}
+
+      {!gameClosed && !revealed && (
+        <Button
+          variant="brass"
+          size="lg"
+          className="w-full mb-6"
+          onClick={() => setRevealOpen(true)}
+        >
+          <Lock className="size-4" /> Reveal All Photos
+        </Button>
+      )}
+
+      {revealed && !gameClosed && (
+        <div className="rounded-2xl border-2 border-brass bg-brass/10 p-4 mb-6 flex items-center gap-3">
+          <Eye className="size-5 text-brass shrink-0" />
+          <p className="text-xs text-smoke/90 flex-1">
+            <span className="font-semibold text-brass">Photos unlocked.</span> Visible on this device.
+          </p>
+          <button
+            onClick={lockAgain}
+            className="text-[10px] uppercase tracking-widest text-smoke/60 hover:text-brass"
+          >
+            Hide
+          </button>
         </div>
       )}
 
@@ -96,7 +172,7 @@ const Scoreboard = () => {
       <ul className="space-y-4">
         {ranked.map(({ team, checkIns: ci, count }, idx) => {
           const isOwnTeam = session?.teamId === team.id;
-          const showPhotos = gameClosed || isOwnTeam;
+          const showPhotos = gameClosed || isOwnTeam || revealed;
           const isWinner = !!team.found_chicken_at;
 
           return (
@@ -177,6 +253,39 @@ const Scoreboard = () => {
           );
         })}
       </ul>
+
+      <Dialog open={revealOpen} onOpenChange={(o) => { setRevealOpen(o); if (!o) setPwInput(""); }}>
+        <DialogContent className="bg-card border-vinyl-red/40">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl flex items-center gap-2">
+              <Lock className="size-5 text-brass" /> Enter the Code
+            </DialogTitle>
+            <DialogDescription>
+              Reveals every team's photos on this device. The Chicken won't be happy.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            type="password"
+            inputMode="numeric"
+            autoFocus
+            placeholder="••••"
+            value={pwInput}
+            onChange={(e) => setPwInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") tryUnlock();
+            }}
+            className="bg-vinyl-dark/60 border-vinyl-red/40 h-14 text-center text-2xl tracking-[0.5em] font-display"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRevealOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="brass" onClick={tryUnlock}>
+              Unlock
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 };
