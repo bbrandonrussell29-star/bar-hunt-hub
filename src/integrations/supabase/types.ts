@@ -14,7 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      check_ins: {
+        Row: {
+          bar_name: string
+          bar_slug: string
+          created_at: string
+          id: string
+          photo_url: string
+          team_id: string
+        }
+        Insert: {
+          bar_name: string
+          bar_slug: string
+          created_at?: string
+          id?: string
+          photo_url: string
+          team_id: string
+        }
+        Update: {
+          bar_name?: string
+          bar_slug?: string
+          created_at?: string
+          id?: string
+          photo_url?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "check_ins_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_settings: {
+        Row: {
+          game_date: string | null
+          id: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          game_date?: string | null
+          id?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          game_date?: string | null
+          id?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      teams: {
+        Row: {
+          created_at: string
+          id: string
+          members: string[]
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          members?: string[]
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          members?: string[]
+          name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
