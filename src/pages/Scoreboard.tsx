@@ -253,6 +253,39 @@ const Scoreboard = () => {
           );
         })}
       </ul>
+
+      <Dialog open={revealOpen} onOpenChange={(o) => { setRevealOpen(o); if (!o) setPwInput(""); }}>
+        <DialogContent className="bg-card border-vinyl-red/40">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl flex items-center gap-2">
+              <Lock className="size-5 text-brass" /> Enter the Code
+            </DialogTitle>
+            <DialogDescription>
+              Reveals every team's photos on this device. The Chicken won't be happy.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            type="password"
+            inputMode="numeric"
+            autoFocus
+            placeholder="••••"
+            value={pwInput}
+            onChange={(e) => setPwInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") tryUnlock();
+            }}
+            className="bg-vinyl-dark/60 border-vinyl-red/40 h-14 text-center text-2xl tracking-[0.5em] font-display"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRevealOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="brass" onClick={tryUnlock}>
+              Unlock
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 };
