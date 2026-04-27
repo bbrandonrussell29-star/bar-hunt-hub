@@ -28,6 +28,15 @@ export function useSession() {
   return { session, save };
 }
 
+export interface TeamRow {
+  id: string;
+  name: string;
+  members: string[];
+  found_chicken_at: string | null;
+  found_chicken_bar_slug: string | null;
+  found_chicken_bar_name: string | null;
+}
+
 export interface GameSettings {
   game_date: string | null;
   status: string;

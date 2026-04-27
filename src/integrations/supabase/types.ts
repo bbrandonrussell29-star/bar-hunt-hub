@@ -73,18 +73,27 @@ export type Database = {
       teams: {
         Row: {
           created_at: string
+          found_chicken_at: string | null
+          found_chicken_bar_name: string | null
+          found_chicken_bar_slug: string | null
           id: string
           members: string[]
           name: string
         }
         Insert: {
           created_at?: string
+          found_chicken_at?: string | null
+          found_chicken_bar_name?: string | null
+          found_chicken_bar_slug?: string | null
           id?: string
           members?: string[]
           name: string
         }
         Update: {
           created_at?: string
+          found_chicken_at?: string | null
+          found_chicken_bar_name?: string | null
+          found_chicken_bar_slug?: string | null
           id?: string
           members?: string[]
           name?: string
