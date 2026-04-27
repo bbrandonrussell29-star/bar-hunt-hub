@@ -3,16 +3,31 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useGame";
 import { BARS } from "@/data/bars";
-import { Check, Camera, ArrowLeft, Trophy } from "lucide-react";
+import { Check, Camera, ArrowLeft, Trophy, PartyPopper } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface CheckIn {
   bar_slug: string;
   bar_name: string;
   photo_url: string;
   created_at: string;
+}
+
+interface TeamFound {
+  found_chicken_at: string | null;
+  found_chicken_bar_name: string | null;
 }
 
 const Bars = () => {
@@ -22,26 +37,50 @@ const Bars = () => {
   const [uploadingSlug, setUploadingSlug] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingBar, setPendingBar] = useState<{ slug: string; name: string } | null>(null);
+  const [teamFound, setTeamFound] = useState<TeamFound>({ found_chicken_at: null, found_chicken_bar_name: null });
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     if (!session) {
       navigate("/join");
       return;
     }
+
     supabase
       .from("check_ins")
       .select("bar_slug, bar_name, photo_url, created_at")
       .eq("team_id", session.teamId)
       .then(({ data }) => setCheckIns(data ?? []));
 
+    supabase
+      .from("teams")
+      .select("found_chicken_at, found_chicken_bar_name")
+      .eq("id", session.teamId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setTeamFound(data);
+      });
+
     const ch = supabase
-      .channel(`checkins-${session.teamId}`)
+      .channel(`bars-${session.teamId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "check_ins", filter: `team_id=eq.${session.teamId}` },
         (payload) => {
           const row = payload.new as CheckIn;
           setCheckIns((prev) => (prev.some((c) => c.bar_slug === row.bar_slug) ? prev : [...prev, row]));
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "teams", filter: `id=eq.${session.teamId}` },
+        (payload) => {
+          const row = payload.new as TeamFound;
+          setTeamFound({
+            found_chicken_at: row.found_chicken_at,
+            found_chicken_bar_name: row.found_chicken_bar_name,
+          });
         }
       )
       .subscribe();
@@ -53,7 +92,7 @@ const Bars = () => {
   const visited = new Set(checkIns.map((c) => c.bar_slug));
 
   const triggerCheckIn = (slug: string, name: string) => {
-    if (visited.has(slug)) return;
+    if (visited.has(slug) || teamFound.found_chicken_at) return;
     setPendingBar({ slug, name });
     fileInputRef.current?.click();
   };
@@ -93,6 +132,27 @@ const Bars = () => {
     setPendingBar(null);
   };
 
+  const declareFound = async (barSlug: string, barName: string) => {
+    if (!session) return;
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from("teams")
+      .update({
+        found_chicken_at: now,
+        found_chicken_bar_slug: barSlug,
+        found_chicken_bar_name: barName,
+      })
+      .eq("id", session.teamId);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setTeamFound({ found_chicken_at: now, found_chicken_bar_name: barName });
+    setPickerOpen(false);
+    setConfirmOpen(false);
+    toast.success(`🐔 You found the Chicken at ${barName}!`);
+  };
+
   const signOut = () => {
     save(null);
     navigate("/");
@@ -100,8 +160,79 @@ const Bars = () => {
 
   if (!session) return null;
 
+  // ===== RECAP VIEW =====
+  if (teamFound.found_chicken_at) {
+    return (
+      <main className="min-h-dvh px-6 py-8 max-w-md mx-auto pb-32">
+        <div className="flex items-center justify-between mb-6">
+          <Link to="/" className="inline-flex items-center gap-2 text-smoke/60 hover:text-smoke text-sm">
+            <ArrowLeft className="size-4" /> Home
+          </Link>
+          <button onClick={signOut} className="text-xs text-smoke/40 hover:text-smoke uppercase tracking-widest">
+            Leave team
+          </button>
+        </div>
+
+        <div className="vinyl-surface rounded-3xl p-6 mb-6 text-center relative overflow-hidden">
+          <div className="text-6xl mb-2">🐔</div>
+          <p className="text-xs uppercase tracking-[0.2em] brass-text font-semibold mb-1">Hunt Complete</p>
+          <h1 className="font-display font-extrabold text-4xl leading-tight">You found the Chicken!</h1>
+          <p className="text-smoke/70 mt-3">
+            <span className="font-semibold text-brass">{teamFound.found_chicken_bar_name}</span>
+          </p>
+          <p className="text-xs text-smoke/50 mt-1 tabular-nums">
+            {format(new Date(teamFound.found_chicken_at), "h:mm a · MMM d")}
+          </p>
+          <div className="mt-5 vinyl-surface rounded-2xl py-3">
+            <p className="text-xs uppercase tracking-widest text-smoke/60">Team</p>
+            <p className="font-display font-extrabold text-2xl">{session.teamName}</p>
+          </div>
+        </div>
+
+        <h2 className="font-display font-bold text-2xl mb-4">Your Crawl Recap</h2>
+        <p className="text-sm text-smoke/60 mb-4">
+          {checkIns.length} bar{checkIns.length === 1 ? "" : "s"} hit before the catch.
+        </p>
+
+        <ul className="space-y-3">
+          {checkIns
+            .slice()
+            .sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at))
+            .map((c) => (
+              <li
+                key={c.bar_slug}
+                className="rounded-2xl p-3 bg-vinyl-red/30 border-2 border-brass/60 flex items-center gap-3"
+              >
+                <img
+                  src={c.photo_url}
+                  alt={`Proof at ${c.bar_name}`}
+                  loading="lazy"
+                  className="size-20 rounded-xl object-cover border border-brass/40"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-display font-bold text-lg leading-tight truncate">{c.bar_name}</p>
+                  <p className="text-xs text-brass tabular-nums">{format(new Date(c.created_at), "h:mm a")}</p>
+                </div>
+              </li>
+            ))}
+        </ul>
+
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-vinyl-dark/90 backdrop-blur-xl border-t border-vinyl-red/30">
+          <div className="max-w-md mx-auto">
+            <Link to="/scoreboard">
+              <Button variant="brass" size="hero" className="w-full">
+                <Trophy className="size-5" /> Scoreboard
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // ===== ACTIVE HUNT VIEW =====
   return (
-    <main className="min-h-dvh px-6 py-8 max-w-md mx-auto pb-32">
+    <main className="min-h-dvh px-6 py-8 max-w-md mx-auto pb-44">
       <div className="flex items-center justify-between mb-6">
         <Link to="/" className="inline-flex items-center gap-2 text-smoke/60 hover:text-smoke text-sm">
           <ArrowLeft className="size-4" /> Home
@@ -189,15 +320,77 @@ const Bars = () => {
         className="hidden"
       />
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-vinyl-dark/90 backdrop-blur-xl border-t border-vinyl-red/30">
-        <div className="max-w-md mx-auto">
-          <Link to="/scoreboard">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-vinyl-dark/90 backdrop-blur-xl border-t border-vinyl-red/30 space-y-2">
+        <div className="max-w-md mx-auto space-y-2">
+          <Button
+            variant="hero"
+            size="hero"
+            className="w-full"
+            onClick={() => setPickerOpen(true)}
+          >
+            <PartyPopper className="size-5" /> I FOUND THE CHICKEN!
+          </Button>
+          <Link to="/scoreboard" className="block">
             <Button variant="brass" size="hero" className="w-full">
               <Trophy className="size-5" /> Scoreboard
             </Button>
           </Link>
         </div>
       </div>
+
+      {/* Bar picker for declaring catch */}
+      <AlertDialog open={pickerOpen} onOpenChange={setPickerOpen}>
+        <AlertDialogContent className="bg-card border-vinyl-red/40 max-h-[80vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-2xl">Where did you find the Chicken?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Pick the bar. This ends your hunt and locks your recap.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <ul className="space-y-2 my-2">
+            {BARS.map((bar) => (
+              <li key={bar.slug}>
+                <button
+                  onClick={() => {
+                    setPendingBar({ slug: bar.slug, name: bar.name });
+                    setConfirmOpen(true);
+                  }}
+                  className="w-full text-left rounded-xl p-3 border-2 border-vinyl-red/30 hover:border-brass bg-vinyl-dark/40 font-display font-bold"
+                >
+                  {bar.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent className="bg-card border-vinyl-red/40">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-2xl">
+              Found at {pendingBar?.name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This ends the hunt for {session.teamName}. You'll see your full recap of bars and photos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Not yet</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingBar) declareFound(pendingBar.slug, pendingBar.name);
+              }}
+              className="bg-brass text-vinyl-dark hover:bg-brass/90"
+            >
+              Yes, we caught the Chicken
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 };
