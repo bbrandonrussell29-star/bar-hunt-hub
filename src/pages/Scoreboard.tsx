@@ -172,7 +172,7 @@ const Scoreboard = () => {
       <ul className="space-y-4">
         {ranked.map(({ team, checkIns: ci, count }, idx) => {
           const isOwnTeam = session?.teamId === team.id;
-          const showPhotos = gameClosed || isOwnTeam;
+          const showPhotos = gameClosed || isOwnTeam || revealed;
           const isWinner = !!team.found_chicken_at;
 
           return (
