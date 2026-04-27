@@ -1,10 +1,24 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Trophy, EyeOff } from "lucide-react";
+import { ArrowLeft, Trophy, EyeOff, Eye, Lock } from "lucide-react";
 import { format } from "date-fns";
 import { BARS } from "@/data/bars";
 import { useGameSettings, useSession } from "@/hooks/useGame";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+
+const REVEAL_PASSWORD = "2486";
+const REVEAL_KEY = "chicken.photosRevealed";
 
 interface Team {
   id: string;
