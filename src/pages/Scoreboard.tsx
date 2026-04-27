@@ -127,13 +127,39 @@ const Scoreboard = () => {
         <p className="text-smoke/60 text-sm mt-1">Most bars hit · Bragging rights forever</p>
       </header>
 
-      {!gameClosed && (
-        <div className="rounded-2xl border-2 border-brass/40 bg-vinyl-dark/60 p-4 mb-6 flex items-start gap-3">
+      {!gameClosed && !revealed && (
+        <div className="rounded-2xl border-2 border-brass/40 bg-vinyl-dark/60 p-4 mb-4 flex items-start gap-3">
           <EyeOff className="size-5 text-brass shrink-0 mt-0.5" />
           <p className="text-xs text-smoke/80 leading-relaxed">
             <span className="font-semibold text-brass">Photos are hidden during the hunt</span> so other
-            teams can't see where the Chicken isn't. All photos unlock when the game closes.
+            teams can't see where the Chicken isn't. Got the secret code? Reveal them below.
           </p>
+        </div>
+      )}
+
+      {!gameClosed && !revealed && (
+        <Button
+          variant="brass"
+          size="lg"
+          className="w-full mb-6"
+          onClick={() => setRevealOpen(true)}
+        >
+          <Lock className="size-4" /> Reveal All Photos
+        </Button>
+      )}
+
+      {revealed && !gameClosed && (
+        <div className="rounded-2xl border-2 border-brass bg-brass/10 p-4 mb-6 flex items-center gap-3">
+          <Eye className="size-5 text-brass shrink-0" />
+          <p className="text-xs text-smoke/90 flex-1">
+            <span className="font-semibold text-brass">Photos unlocked.</span> Visible on this device.
+          </p>
+          <button
+            onClick={lockAgain}
+            className="text-[10px] uppercase tracking-widest text-smoke/60 hover:text-brass"
+          >
+            Hide
+          </button>
         </div>
       )}
 
