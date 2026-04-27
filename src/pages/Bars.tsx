@@ -132,6 +132,24 @@ const Bars = () => {
     setPendingBar(null);
   };
 
+  const undoFound = async () => {
+    if (!session) return;
+    const { error } = await supabase
+      .from("teams")
+      .update({
+        found_chicken_at: null,
+        found_chicken_bar_slug: null,
+        found_chicken_bar_name: null,
+      })
+      .eq("id", session.teamId);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setTeamFound({ found_chicken_at: null, found_chicken_bar_name: null });
+    toast.success("Hunt resumed — keep going!");
+  };
+
   const declareFound = async (barSlug: string, barName: string) => {
     if (!session) return;
     const now = new Date().toISOString();
