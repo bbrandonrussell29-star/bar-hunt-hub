@@ -1,9 +1,15 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useGameSettings, useSession, usePhotosRevealed } from "@/hooks/useGame";
-import { format, parseISO } from "date-fns";
-import { Egg, Trophy, Settings, Lock, Eye } from "lucide-react";
+import {
+  useAuth,
+  useGames,
+  usePhotosRevealed,
+  setActiveGameId,
+  useSession,
+} from "@/hooks/useGame";
+import { format, parseISO, isPast, isToday } from "date-fns";
+import { Egg, Trophy, Settings, Lock, Eye, LogOut, Calendar, ChevronRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -16,15 +22,13 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 const Home = () => {
-  const settings = useGameSettings();
-  const { session } = useSession();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const { games, loading } = useGames();
+  const { session, save: saveSession } = useSession();
   const { revealed, unlock, lock } = usePhotosRevealed();
   const [open, setOpen] = useState(false);
   const [pw, setPw] = useState("");
-
-  const dateLabel = settings?.game_date
-    ? format(parseISO(settings.game_date), "EEEE, MMM d")
-    : "TBA";
 
   const tryUnlock = () => {
     if (unlock(pw)) {
@@ -37,9 +41,39 @@ const Home = () => {
     }
   };
 
+  const pickGame = (g: { id: string; name: string }) => {
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+    setActiveGameId(g.id);
+    // If the saved team session is for a different game, clear it.
+    if (session && session.gameId !== g.id) saveSession(null);
+    navigate("/join");
+  };
+
+  const upcoming = games.filter(
+    (g) => g.status !== "closed" && !isPast(parseISO(g.game_date + "T23:59:59"))
+  );
+  const past = games.filter(
+    (g) => g.status === "closed" || isPast(parseISO(g.game_date + "T23:59:59"))
+  );
+
   return (
     <main className="min-h-dvh px-6 py-10 max-w-md mx-auto flex flex-col gap-8">
-      <header className="flex flex-col items-center text-center gap-2 mt-6">
+      <header className="flex flex-col items-center text-center gap-2 mt-6 relative w-full">
+        {user && (
+          <button
+            onClick={() => {
+              signOut();
+              saveSession(null);
+              toast.success("Signed out");
+            }}
+            className="absolute right-0 top-0 text-[10px] uppercase tracking-widest text-smoke/50 hover:text-brass flex items-center gap-1"
+          >
+            <LogOut className="size-3" /> Sign out
+          </button>
+        )}
         <span className="text-xs uppercase tracking-[0.2em] italic brass-text font-semibold">
           The Legendary Hunt
         </span>
@@ -47,38 +81,115 @@ const Home = () => {
           CHICKEN <span className="inline-block">🐔</span>
         </h1>
         <div className="h-1 w-24 rounded-full bg-vinyl-bright mt-3" />
+        {user && (
+          <p className="text-xs text-smoke/60 mt-3">
+            Signed in as <span className="text-brass font-semibold">{user.playerName}</span>
+          </p>
+        )}
       </header>
 
-      <section className="vinyl-surface rounded-[2rem] p-8 relative overflow-hidden">
-        <div className="absolute top-4 right-4 size-12 rounded-full border-2 border-brass/30 bg-vinyl-dark/40 backdrop-blur-sm flex items-center justify-center">
-          <Egg className="text-brass size-5" />
-        </div>
-
-        <p className="text-xs uppercase tracking-widest text-smoke/60 mb-1">
-          {settings?.status === "active" ? "Hunt In Progress" : "Next Flight"}
-        </p>
-        <h2 className="font-display font-extrabold text-4xl leading-tight">
-          The Midnight Crawl
-        </h2>
-
-        <div className="mt-6 flex items-center gap-3">
-          <div className="size-10 rounded-xl bg-vinyl-dark/60 border border-white/5 flex items-center justify-center">
-            <div className={`size-2 rounded-full ${settings?.status === "active" ? "bg-brass animate-pulse" : "bg-smoke/40"}`} />
+      {!user ? (
+        <section className="vinyl-surface rounded-[2rem] p-8 text-center">
+          <p className="text-xs uppercase tracking-widest text-smoke/60 mb-2">Step One</p>
+          <h2 className="font-display font-extrabold text-3xl mb-3">Make an account</h2>
+          <p className="text-sm text-smoke/60 mb-5">
+            Pick a name and a 4-digit PIN. That's all you need to join the hunt.
+          </p>
+          <Link to="/auth">
+            <Button variant="hero" size="hero" className="w-full">
+              Create account / Log in
+            </Button>
+          </Link>
+        </section>
+      ) : (
+        <section>
+          <div className="flex items-end justify-between mb-3">
+            <div>
+              <p className="text-xs uppercase tracking-widest text-brass">Choose a game</p>
+              <h2 className="font-display font-extrabold text-3xl">Upcoming hunts</h2>
+            </div>
+            <span className="text-xs text-smoke/40 tabular-nums">{upcoming.length}</span>
           </div>
-          <div>
-            <p className="text-sm font-semibold">{dateLabel}</p>
-            <p className="text-xs text-smoke/50">
-              13 bars · One chicken · One winner
-            </p>
-          </div>
-        </div>
 
-        <Link to="/join" className="block mt-6">
-          <Button variant="hero" size="hero" className="w-full">
-            {session ? "BACK TO THE HUNT" : "SQUAWK IN"}
-          </Button>
-        </Link>
-      </section>
+          {loading ? (
+            <div className="vinyl-surface rounded-2xl p-6 text-center text-smoke/50">Loading…</div>
+          ) : upcoming.length === 0 ? (
+            <div className="vinyl-surface rounded-2xl p-6 text-center text-smoke/60">
+              No games scheduled yet. An admin needs to add one.
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {upcoming.map((g) => {
+                const d = parseISO(g.game_date);
+                const today = isToday(d);
+                return (
+                  <li key={g.id}>
+                    <button
+                      onClick={() => pickGame(g)}
+                      className="w-full text-left rounded-2xl p-4 border-2 border-vinyl-red/30 hover:border-brass bg-vinyl-dark/40 active:scale-[0.99] transition-all flex items-center gap-3"
+                    >
+                      <div className="size-12 rounded-xl bg-vinyl-dark/60 border border-brass/30 flex flex-col items-center justify-center shrink-0">
+                        <span className="text-[9px] uppercase text-brass font-bold leading-none">
+                          {format(d, "MMM")}
+                        </span>
+                        <span className="font-display font-extrabold text-lg leading-none mt-0.5">
+                          {format(d, "d")}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-display font-bold text-lg leading-tight truncate">
+                          {g.name}
+                        </p>
+                        <p className="text-xs text-smoke/50">
+                          {format(d, "EEEE")} ·{" "}
+                          <span
+                            className={
+                              g.status === "active"
+                                ? "text-brass font-semibold"
+                                : today
+                                ? "text-vinyl-bright"
+                                : "text-smoke/50"
+                            }
+                          >
+                            {g.status === "active" ? "Hunt on" : today ? "Today" : "Upcoming"}
+                          </span>
+                        </p>
+                      </div>
+                      <ChevronRight className="size-5 text-smoke/40" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {past.length > 0 && (
+            <details className="mt-4">
+              <summary className="text-xs uppercase tracking-widest text-smoke/50 cursor-pointer hover:text-brass">
+                Past games ({past.length})
+              </summary>
+              <ul className="space-y-2 mt-3">
+                {past.map((g) => (
+                  <li key={g.id}>
+                    <button
+                      onClick={() => pickGame(g)}
+                      className="w-full text-left rounded-2xl p-3 border border-vinyl-red/20 bg-vinyl-dark/30 opacity-70 hover:opacity-100 flex items-center gap-3"
+                    >
+                      <Calendar className="size-4 text-smoke/40 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-display font-bold truncate">{g.name}</p>
+                        <p className="text-[11px] text-smoke/40">
+                          {format(parseISO(g.game_date), "MMM d, yyyy")}
+                        </p>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </section>
+      )}
 
       <div>
         {!revealed ? (

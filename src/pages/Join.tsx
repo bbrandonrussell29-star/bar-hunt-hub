@@ -3,84 +3,104 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useSession } from "@/hooks/useGame";
+import { useSession, useAuth, getActiveGameId, useGame } from "@/hooks/useGame";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Users, X } from "lucide-react";
 import { Link } from "react-router-dom";
+import { format, parseISO } from "date-fns";
 
 interface ExistingTeam {
   id: string;
   name: string;
   members: string[];
   found_chicken_at: string | null;
+  game_id: string | null;
 }
 
 const Join = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { session, save } = useSession();
-  const [playerName, setPlayerName] = useState(session?.playerName ?? "");
+  const [gameId] = useState<string | null>(() => getActiveGameId());
+  const game = useGame(gameId);
   const [teams, setTeams] = useState<ExistingTeam[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
 
+  useEffect(() => {
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+    if (!gameId) {
+      navigate("/");
+    }
+  }, [user, gameId, navigate]);
+
   const loadTeams = () => {
+    if (!gameId) return;
     supabase
       .from("teams")
-      .select("id, name, members, found_chicken_at")
+      .select("id, name, members, found_chicken_at, game_id")
+      .eq("game_id", gameId)
       .order("created_at", { ascending: false })
       .then(({ data }) => setTeams(data ?? []));
   };
 
   useEffect(() => {
+    if (!gameId) return;
     loadTeams();
     const ch = supabase
-      .channel("join-teams")
-      .on("postgres_changes", { event: "*", schema: "public", table: "teams" }, loadTeams)
+      .channel(`join-teams-${gameId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "teams", filter: `game_id=eq.${gameId}` },
+        loadTeams
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameId]);
 
-  const requireName = (): string | null => {
-    const player = playerName.trim();
-    if (!player) {
-      toast.error("Enter your name first");
-      return null;
-    }
-    return player;
-  };
+  if (!user || !gameId) return null;
+
+  const playerName = user.playerName;
 
   const joinTeam = async (team: ExistingTeam) => {
-    const player = requireName();
-    if (!player) return;
     if (team.found_chicken_at) {
       toast.error("That team's hunt is already over");
       return;
     }
-    if (team.members.length >= 3 && !team.members.includes(player)) {
+    if (team.members.length >= 3 && !team.members.includes(playerName)) {
       toast.error("Team is full (max 3)");
       return;
     }
     setLoading(team.id);
-    const newMembers = team.members.includes(player) ? team.members : [...team.members, player];
+    const newMembers = team.members.includes(playerName)
+      ? team.members
+      : [...team.members, playerName];
     const { error } = await supabase.from("teams").update({ members: newMembers }).eq("id", team.id);
     setLoading(null);
     if (error) {
       toast.error(error.message);
       return;
     }
-    save({ teamId: team.id, teamName: team.name, playerName: player });
-    toast.success(`Welcome to ${team.name}, ${player}!`);
+    save({
+      gameId,
+      gameName: game?.name ?? "Hunt",
+      teamId: team.id,
+      teamName: team.name,
+      playerName,
+    });
+    toast.success(`Welcome to ${team.name}, ${playerName}!`);
     navigate("/bars");
   };
 
   const createTeam = async (e: React.FormEvent) => {
     e.preventDefault();
-    const player = requireName();
-    if (!player) return;
     const name = newTeamName.trim();
     if (!name) {
       toast.error("Give the team a name");
@@ -94,7 +114,7 @@ const Join = () => {
     setLoading("__new__");
     const { data, error } = await supabase
       .from("teams")
-      .insert({ name, members: [player] })
+      .insert({ name, members: [playerName], game_id: gameId })
       .select()
       .single();
     setLoading(null);
@@ -102,7 +122,13 @@ const Join = () => {
       toast.error(error?.message ?? "Failed to create team");
       return;
     }
-    save({ teamId: data.id, teamName: data.name, playerName: player });
+    save({
+      gameId,
+      gameName: game?.name ?? "Hunt",
+      teamId: data.id,
+      teamName: data.name,
+      playerName,
+    });
     toast.success(`Team ${name} is on the hunt!`);
     navigate("/bars");
   };
@@ -113,28 +139,21 @@ const Join = () => {
         <ArrowLeft className="size-4" /> Home
       </Link>
 
-      <h1 className="font-display font-extrabold text-5xl mb-2">Join the hunt</h1>
-      <p className="text-smoke/60 mb-8">
-        Pick your team below, or start a new one. 2–3 hunters per team.
-      </p>
+      {game && (
+        <div className="mb-4">
+          <p className="text-xs uppercase tracking-widest text-brass">{game.name}</p>
+          <p className="text-xs text-smoke/50">{format(parseISO(game.game_date), "EEE, MMM d")}</p>
+        </div>
+      )}
 
-      <div className="mb-6">
-        <Label htmlFor="player" className="uppercase tracking-widest text-xs text-smoke/60">
-          Your name
-        </Label>
-        <Input
-          id="player"
-          value={playerName}
-          onChange={(e) => setPlayerName(e.target.value)}
-          placeholder="Mara Thorne"
-          className="mt-2 h-14 text-lg bg-vinyl-dark/60 border-vinyl-red/40 rounded-2xl px-4"
-          maxLength={40}
-        />
-      </div>
+      <h1 className="font-display font-extrabold text-5xl mb-2">Pick a team</h1>
+      <p className="text-smoke/60 mb-8">
+        Joining as <span className="text-brass font-semibold">{playerName}</span>. 2–3 hunters per team.
+      </p>
 
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs uppercase tracking-widest text-smoke/50 flex items-center gap-2">
-          <Users className="size-3.5" /> Teams in the game
+          <Users className="size-3.5" /> Teams in this game
         </p>
         <span className="text-xs text-smoke/40 tabular-nums">{teams.length}</span>
       </div>
@@ -148,7 +167,7 @@ const Join = () => {
           {teams.map((t) => {
             const full = t.members.length >= 3;
             const done = !!t.found_chicken_at;
-            const disabled = done || (full && !t.members.includes(playerName.trim()));
+            const disabled = done || (full && !t.members.includes(playerName));
             const isLoading = loading === t.id;
             return (
               <li key={t.id}>
@@ -190,10 +209,7 @@ const Join = () => {
           variant="hero"
           size="hero"
           className="w-full"
-          onClick={() => {
-            if (!requireName()) return;
-            setShowCreate(true);
-          }}
+          onClick={() => setShowCreate(true)}
         >
           <Plus className="size-5" /> Add a New Team
         </Button>
