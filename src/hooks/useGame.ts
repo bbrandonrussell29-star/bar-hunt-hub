@@ -51,6 +51,73 @@ export function usePhotosRevealed() {
   return { revealed, unlock, lock };
 }
 
+const GAME_REVEAL_KEY = "chicken.revealedGames";
+
+function readRevealedGames(): Set<string> {
+  try {
+    const raw = localStorage.getItem(GAME_REVEAL_KEY);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeRevealedGames(set: Set<string>) {
+  try {
+    localStorage.setItem(GAME_REVEAL_KEY, JSON.stringify(Array.from(set)));
+  } catch {
+    /* ignore */
+  }
+  window.dispatchEvent(new Event("chicken:game-reveal-changed"));
+}
+
+export function useGameRevealed(gameId: string | null | undefined) {
+  const globalRevealed =
+    typeof window !== "undefined" && localStorage.getItem(REVEAL_KEY) === "1";
+  const [revealed, setRevealed] = useState<boolean>(() => {
+    if (!gameId) return false;
+    if (globalRevealed) return true;
+    return readRevealedGames().has(gameId);
+  });
+
+  useEffect(() => {
+    const recompute = () => {
+      if (!gameId) return setRevealed(false);
+      const isGlobal = localStorage.getItem(REVEAL_KEY) === "1";
+      setRevealed(isGlobal || readRevealedGames().has(gameId));
+    };
+    recompute();
+    window.addEventListener("chicken:reveal-changed", recompute);
+    window.addEventListener("chicken:game-reveal-changed", recompute);
+    window.addEventListener("storage", recompute);
+    return () => {
+      window.removeEventListener("chicken:reveal-changed", recompute);
+      window.removeEventListener("chicken:game-reveal-changed", recompute);
+      window.removeEventListener("storage", recompute);
+    };
+  }, [gameId]);
+
+  const unlock = (password: string) => {
+    if (!gameId) return false;
+    if (password.trim() !== REVEAL_PASSWORD) return false;
+    const set = readRevealedGames();
+    set.add(gameId);
+    writeRevealedGames(set);
+    setRevealed(true);
+    return true;
+  };
+
+  const lock = () => {
+    if (!gameId) return;
+    const set = readRevealedGames();
+    set.delete(gameId);
+    writeRevealedGames(set);
+    setRevealed(localStorage.getItem(REVEAL_KEY) === "1");
+  };
+
+  return { revealed, unlock, lock };
+}
+
 
 export interface TeamSession {
   teamId: string;
