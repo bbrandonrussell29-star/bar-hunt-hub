@@ -332,12 +332,18 @@ const Bars = () => {
                   )}
                 </div>
                 {isVisited && checkIn && (
-                  <img
-                    src={checkIn.photo_url}
-                    alt={`Proof at ${bar.name}`}
-                    loading="lazy"
-                    className="size-14 rounded-xl object-cover border border-brass/40"
-                  />
+                  revealed ? (
+                    <img
+                      src={checkIn.photo_url}
+                      alt={`Proof at ${bar.name}`}
+                      loading="lazy"
+                      className="size-14 rounded-xl object-cover border border-brass/40"
+                    />
+                  ) : (
+                    <div className="size-14 rounded-xl bg-vinyl-dark/80 border border-brass/40 flex items-center justify-center">
+                      <EyeOff className="size-5 text-smoke/40" />
+                    </div>
+                  )
                 )}
               </button>
             </li>
