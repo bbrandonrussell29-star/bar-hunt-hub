@@ -82,7 +82,7 @@ const Join = () => {
       toast.error(error.message);
       return;
     }
-    save({ teamId: team.id, teamName: team.name, playerName: player });
+    save({ teamId: team.id, teamName: team.name, playerName: player, gameId: game?.id, gameName: game?.name });
     toast.success(`Welcome to ${team.name}, ${player}!`);
     navigate("/bars");
   };
