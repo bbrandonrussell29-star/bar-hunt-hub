@@ -223,12 +223,18 @@ const Bars = () => {
                 key={c.bar_slug}
                 className="rounded-2xl p-3 bg-vinyl-red/30 border-2 border-brass/60 flex items-center gap-3"
               >
-                <img
-                  src={c.photo_url}
-                  alt={`Proof at ${c.bar_name}`}
-                  loading="lazy"
-                  className="size-20 rounded-xl object-cover border border-brass/40"
-                />
+                {revealed ? (
+                  <img
+                    src={c.photo_url}
+                    alt={`Proof at ${c.bar_name}`}
+                    loading="lazy"
+                    className="size-20 rounded-xl object-cover border border-brass/40"
+                  />
+                ) : (
+                  <div className="size-20 rounded-xl bg-vinyl-dark/80 border border-brass/40 flex items-center justify-center">
+                    <EyeOff className="size-6 text-smoke/40" />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="font-display font-bold text-lg leading-tight truncate">{c.bar_name}</p>
                   <p className="text-xs text-brass tabular-nums">{format(new Date(c.created_at), "h:mm a")}</p>
