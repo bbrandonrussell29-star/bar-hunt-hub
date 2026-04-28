@@ -32,6 +32,7 @@ interface TeamFound {
 
 const Bars = () => {
   const { session, save } = useSession();
+  const { revealed } = usePhotosRevealed();
   const navigate = useNavigate();
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [uploadingSlug, setUploadingSlug] = useState<string | null>(null);
