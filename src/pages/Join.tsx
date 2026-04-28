@@ -104,7 +104,7 @@ const Join = () => {
     setLoading("__new__");
     const { data, error } = await supabase
       .from("teams")
-      .insert({ name, members: [player] })
+      .insert({ name, members: [player], game_id: game?.id ?? null })
       .select()
       .single();
     setLoading(null);
@@ -112,7 +112,7 @@ const Join = () => {
       toast.error(error?.message ?? "Failed to create team");
       return;
     }
-    save({ teamId: data.id, teamName: data.name, playerName: player });
+    save({ teamId: data.id, teamName: data.name, playerName: player, gameId: game?.id, gameName: game?.name });
     toast.success(`Team ${name} is on the hunt!`);
     navigate("/bars");
   };
