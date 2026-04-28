@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Trophy, EyeOff, Eye, ChevronRight, Lock, Calendar } from "lucide-react";
 import { format, parseISO } from "date-fns";
-import { BARS } from "@/data/bars";
+import { useBars } from "@/hooks/useBars";
 import { useSession, useGameRevealed } from "@/hooks/useGame";
 import { Button } from "@/components/ui/button";
 import {
@@ -120,6 +120,7 @@ const GameScoreboard = ({ game, onBack }: GameScoreboardProps) => {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const { session } = useSession();
   const { revealed, unlock, lock } = useGameRevealed(game.id);
+  const { bars: BARS } = useBars({ includeInactive: true });
   const [open, setOpen] = useState(false);
   const [pw, setPw] = useState("");
 

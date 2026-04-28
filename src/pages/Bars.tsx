@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession, usePhotosRevealed } from "@/hooks/useGame";
-import { BARS } from "@/data/bars";
+import { useBars } from "@/hooks/useBars";
 import { Check, Camera, ArrowLeft, Trophy, PartyPopper, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -33,6 +33,7 @@ interface TeamFound {
 const Bars = () => {
   const { session, save } = useSession();
   const { revealed } = usePhotosRevealed();
+  const { bars: BARS } = useBars();
   const navigate = useNavigate();
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [uploadingSlug, setUploadingSlug] = useState<string | null>(null);
