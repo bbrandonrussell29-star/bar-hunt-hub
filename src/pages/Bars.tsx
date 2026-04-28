@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useSession } from "@/hooks/useGame";
+import { useSession, usePhotosRevealed } from "@/hooks/useGame";
 import { BARS } from "@/data/bars";
-import { Check, Camera, ArrowLeft, Trophy, PartyPopper } from "lucide-react";
+import { Check, Camera, ArrowLeft, Trophy, PartyPopper, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
