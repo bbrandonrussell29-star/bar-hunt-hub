@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useSession } from "@/hooks/useGame";
+import { useSession, useActiveGame } from "@/hooks/useGame";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Users, X } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -19,30 +19,40 @@ interface ExistingTeam {
 const Join = () => {
   const navigate = useNavigate();
   const { session, save } = useSession();
+  const { game } = useActiveGame();
   const [playerName, setPlayerName] = useState(session?.playerName ?? "");
   const [teams, setTeams] = useState<ExistingTeam[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
 
-  const loadTeams = () => {
-    supabase
-      .from("teams")
-      .select("id, name, members, found_chicken_at")
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setTeams(data ?? []));
-  };
+  useEffect(() => {
+    if (!game) navigate("/");
+  }, [game, navigate]);
 
   useEffect(() => {
+    if (!game) return;
+    const loadTeams = () => {
+      supabase
+        .from("teams")
+        .select("id, name, members, found_chicken_at")
+        .eq("game_id", game.id)
+        .order("created_at", { ascending: false })
+        .then(({ data }) => setTeams(data ?? []));
+    };
     loadTeams();
     const ch = supabase
-      .channel("join-teams")
-      .on("postgres_changes", { event: "*", schema: "public", table: "teams" }, loadTeams)
+      .channel(`join-teams-${game.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "teams", filter: `game_id=eq.${game.id}` },
+        loadTeams
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
     };
-  }, []);
+  }, [game?.id]);
 
   const requireName = (): string | null => {
     const player = playerName.trim();
@@ -72,7 +82,7 @@ const Join = () => {
       toast.error(error.message);
       return;
     }
-    save({ teamId: team.id, teamName: team.name, playerName: player });
+    save({ teamId: team.id, teamName: team.name, playerName: player, gameId: game?.id, gameName: game?.name });
     toast.success(`Welcome to ${team.name}, ${player}!`);
     navigate("/bars");
   };
@@ -94,7 +104,7 @@ const Join = () => {
     setLoading("__new__");
     const { data, error } = await supabase
       .from("teams")
-      .insert({ name, members: [player] })
+      .insert({ name, members: [player], game_id: game?.id ?? null })
       .select()
       .single();
     setLoading(null);
@@ -102,7 +112,7 @@ const Join = () => {
       toast.error(error?.message ?? "Failed to create team");
       return;
     }
-    save({ teamId: data.id, teamName: data.name, playerName: player });
+    save({ teamId: data.id, teamName: data.name, playerName: player, gameId: game?.id, gameName: game?.name });
     toast.success(`Team ${name} is on the hunt!`);
     navigate("/bars");
   };

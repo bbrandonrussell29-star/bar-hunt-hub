@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useSession } from "@/hooks/useGame";
+import { useSession, usePhotosRevealed } from "@/hooks/useGame";
 import { BARS } from "@/data/bars";
-import { Check, Camera, ArrowLeft, Trophy, PartyPopper } from "lucide-react";
+import { Check, Camera, ArrowLeft, Trophy, PartyPopper, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ interface TeamFound {
 
 const Bars = () => {
   const { session, save } = useSession();
+  const { revealed } = usePhotosRevealed();
   const navigate = useNavigate();
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [uploadingSlug, setUploadingSlug] = useState<string | null>(null);
@@ -122,6 +123,7 @@ const Bars = () => {
       bar_slug: pendingBar.slug,
       bar_name: pendingBar.name,
       photo_url: pub.publicUrl,
+      game_id: session.gameId ?? null,
     });
     if (insErr) {
       toast.error(insErr.message);
@@ -221,12 +223,18 @@ const Bars = () => {
                 key={c.bar_slug}
                 className="rounded-2xl p-3 bg-vinyl-red/30 border-2 border-brass/60 flex items-center gap-3"
               >
-                <img
-                  src={c.photo_url}
-                  alt={`Proof at ${c.bar_name}`}
-                  loading="lazy"
-                  className="size-20 rounded-xl object-cover border border-brass/40"
-                />
+                {revealed ? (
+                  <img
+                    src={c.photo_url}
+                    alt={`Proof at ${c.bar_name}`}
+                    loading="lazy"
+                    className="size-20 rounded-xl object-cover border border-brass/40"
+                  />
+                ) : (
+                  <div className="size-20 rounded-xl bg-vinyl-dark/80 border border-brass/40 flex items-center justify-center">
+                    <EyeOff className="size-6 text-smoke/40" />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="font-display font-bold text-lg leading-tight truncate">{c.bar_name}</p>
                   <p className="text-xs text-brass tabular-nums">{format(new Date(c.created_at), "h:mm a")}</p>
@@ -324,12 +332,18 @@ const Bars = () => {
                   )}
                 </div>
                 {isVisited && checkIn && (
-                  <img
-                    src={checkIn.photo_url}
-                    alt={`Proof at ${bar.name}`}
-                    loading="lazy"
-                    className="size-14 rounded-xl object-cover border border-brass/40"
-                  />
+                  revealed ? (
+                    <img
+                      src={checkIn.photo_url}
+                      alt={`Proof at ${bar.name}`}
+                      loading="lazy"
+                      className="size-14 rounded-xl object-cover border border-brass/40"
+                    />
+                  ) : (
+                    <div className="size-14 rounded-xl bg-vinyl-dark/80 border border-brass/40 flex items-center justify-center">
+                      <EyeOff className="size-5 text-smoke/40" />
+                    </div>
+                  )
                 )}
               </button>
             </li>

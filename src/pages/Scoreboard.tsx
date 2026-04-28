@@ -78,9 +78,9 @@ const Scoreboard = () => {
         <div className="rounded-2xl border-2 border-brass/40 bg-vinyl-dark/60 p-4 mb-6 flex items-start gap-3">
           <EyeOff className="size-5 text-brass shrink-0 mt-0.5" />
           <p className="text-xs text-smoke/80 leading-relaxed">
-            <span className="font-semibold text-brass">Photos are hidden.</span> Only your own team's
-            shots are visible. Use <span className="text-brass font-semibold">Reveal All Photos</span>{" "}
-            on the home screen to unlock the rest.
+            <span className="font-semibold text-brass">All photos are hidden</span> — even your own.
+            Use <span className="text-brass font-semibold">Reveal All Photos</span> on the home screen
+            to unlock them.
           </p>
         </div>
       ) : (
@@ -101,7 +101,7 @@ const Scoreboard = () => {
       <ul className="space-y-4">
         {ranked.map(({ team, checkIns: ci, count }, idx) => {
           const isOwnTeam = session?.teamId === team.id;
-          const showPhotos = isOwnTeam || revealed;
+          const showPhotos = revealed;
           const isWinner = !!team.found_chicken_at;
 
           return (

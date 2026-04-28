@@ -56,9 +56,51 @@ export interface TeamSession {
   teamId: string;
   teamName: string;
   playerName: string;
+  gameId?: string;
+  gameName?: string;
 }
 
 const KEY = "chicken.session";
+const ACTIVE_GAME_KEY = "chicken.activeGame";
+
+export interface ActiveGame {
+  id: string;
+  name: string;
+  game_date: string;
+}
+
+export function useActiveGame() {
+  const [game, setGameState] = useState<ActiveGame | null>(() => {
+    try {
+      const raw = localStorage.getItem(ACTIVE_GAME_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    const onCustom = () => {
+      try {
+        const raw = localStorage.getItem(ACTIVE_GAME_KEY);
+        setGameState(raw ? JSON.parse(raw) : null);
+      } catch {
+        setGameState(null);
+      }
+    };
+    window.addEventListener("chicken:active-game-changed", onCustom);
+    return () => window.removeEventListener("chicken:active-game-changed", onCustom);
+  }, []);
+
+  const setGame = (g: ActiveGame | null) => {
+    if (g) localStorage.setItem(ACTIVE_GAME_KEY, JSON.stringify(g));
+    else localStorage.removeItem(ACTIVE_GAME_KEY);
+    setGameState(g);
+    window.dispatchEvent(new Event("chicken:active-game-changed"));
+  };
+
+  return { game, setGame };
+}
 
 export function useSession() {
   const [session, setSession] = useState<TeamSession | null>(() => {
