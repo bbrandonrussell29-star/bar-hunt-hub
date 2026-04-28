@@ -123,6 +123,7 @@ const Bars = () => {
       bar_slug: pendingBar.slug,
       bar_name: pendingBar.name,
       photo_url: pub.publicUrl,
+      game_id: session.gameId ?? null,
     });
     if (insErr) {
       toast.error(insErr.message);
